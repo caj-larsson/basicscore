@@ -2,7 +2,7 @@
 name = "basicscore"
 description = "Creates basicness-scores of software"
 readme = "Readme.md"
-version = "0.0.2"
+version = "0.0.3"
 authors = [
     { name = "Caj Larsson", email = "basic@caj.me" },
     { name= "Billy Bonks", email = "no@example.org" }
