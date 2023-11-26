@@ -47,14 +47,28 @@ class BasicScore():
         self.probs = self.seq_probabilities(path, text, update_fn)
         return self.scorer(self.probs)
 
-    def select(self, tokens, embs, lstrip_first=False):
-        token_probs = []
-        for i, tok in enumerate(tokens):
-            tok_decode = str(self.llm.detokenize([tok]), "utf-8")
-            if lstrip_first and i == 0:
-                tok_decode = tok_decode.lstrip()
-            token_probs.append((tok_decode, float(embs[i][tok])))
-        return token_probs
+    def select(self, tokens, embs):
+        return list((tok, float(embs[i][tok])) for i, tok in enumerate(tokens))
+
+    def string_probs(self, token_probs, lstrip_first=False):
+        out = []
+        tokens = []
+        probs = []
+        for i, (token, prob) in enumerate(token_probs):
+            tokens.append(token)
+            probs.append(prob)
+            try:
+                tok_decode = str(self.llm.detokenize(tokens), "utf-8")
+                if lstrip_first and i == 0:
+                    tok_decode = tok_decode.lstrip()
+                if len(tok_decode) > 0:
+                    out.append((tok_decode, min(probs)))
+                tokens = []
+                probs = []
+            except ValueError as e:
+                pass
+
+        return out
 
     def predict(self, text_enc, update_fn, context=None):
         if context is None:
@@ -76,10 +90,11 @@ class BasicScore():
         while True:
             end = start + n_ctx - len(context_enc)
             embs = self.predict(text_enc[start:end], update_fn, context_enc)
-            pps = self.select(text_enc[start:end], embs, text[0] != b' ')
+            tps = self.select(text_enc[start:end], embs)
+            pps = self.string_probs(tps, text[0] != b' ')
 
             token_probs += pps
-            start += len(pps)
+            start += len(tps)
             context_enc = self.prompter(path, text_enc, start)
 
             if start >= len(text_enc):
